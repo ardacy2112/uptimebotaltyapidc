@@ -1,11 +1,26 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const express = require('express');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 
+// Express sunucusu oluştur
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Health check endpoint
+app.get('/', (req, res) => {
+    res.status(200).json({ 
+        status: 'online',
+        bot: client.user?.tag || 'Bot başlatılıyor...',
+        uptime: process.uptime()
+    });
+});
+
+// Discord bot başlatma
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const commands = new Collection();
 
@@ -21,7 +36,7 @@ for (const file of commandFiles) {
 // Bot hazır olduğunda
 client.once('ready', async () => {
     console.log(`✅ ${client.user.tag} çevrimiçi!`);
-
+    
     // Slash komutları kaydet
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     
@@ -36,26 +51,27 @@ client.once('ready', async () => {
     }
 
     // 3 dakikada bir ping
-    setInterval(() => {
-        const sites = require('./sites.json');
-        sites.forEach(async site => {
-            try {
-                const start = Date.now();
-                const response = await fetch(site.url);
-                const latency = Date.now() - start;
-                
-                console.log(`🌐 ${site.url} yanıt süresi: ${latency}ms (${response.status})`);
-            } catch (error) {
-                console.error(`🔴 ${site.url} erişilemiyor: ${error.message}`);
-            }
-        });
-    }, 180000);
+    setInterval(pingWebsites, 180000);
 });
+
+// Website ping fonksiyonu
+async function pingWebsites() {
+    const sites = require('./sites.json');
+    sites.forEach(async site => {
+        try {
+            const start = Date.now();
+            const response = await fetch(site.url);
+            const latency = Date.now() - start;
+            console.log(`🌐 ${site.url} yanıt süresi: ${latency}ms (${response.status})`);
+        } catch (error) {
+            console.error(`🔴 ${site.url} erişilemiyor: ${error.message}`);
+        }
+    });
+}
 
 // Slash komut işleyici
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
-
     const command = commands.get(interaction.commandName);
     if (!command) return;
 
@@ -70,5 +86,15 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Botu başlat
-client.login(process.env.TOKEN);
+// Uygulamayı başlat
+client.login(process.env.TOKEN)
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`🌍 Sunucu ${PORT} portunda çalışıyor`);
+            console.log(`🔗 Uptime URL: http://localhost:${PORT}`);
+        });
+    })
+    .catch(error => {
+        console.error('❌ Bot başlatılamadı:', error);
+        process.exit(1);
+    });

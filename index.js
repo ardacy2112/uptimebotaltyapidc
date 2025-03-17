@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActivityType } = require('discord.js');
 const express = require('express');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
@@ -20,8 +20,18 @@ app.get('/', (req, res) => {
     });
 });
 
-// Discord bot başlatma
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// Discord bot başlatma (GÜNCELLENDİ)
+const client = new Client({ 
+    intents: [GatewayIntentBits.Guilds],
+    presence: {
+        activities: [{
+            name: 'V3 En iyi uptime 2025',
+            type: ActivityType.Watching
+        }],
+        status: 'idle'
+    }
+});
+
 const commands = new Collection();
 
 // Komutları yükle
@@ -33,10 +43,25 @@ for (const file of commandFiles) {
     commands.set(command.data.name, command);
 }
 
-// Bot hazır olduğunda
+// Bot hazır olduğunda (GÜNCELLENDİ)
 client.once('ready', async () => {
     console.log(`✅ ${client.user.tag} çevrimiçi!`);
     
+    // Durum güncelleme fonksiyonu
+    const updatePresence = () => {
+        client.user.setActivity({
+            name: 'V3 En iyi uptime 2025',
+            type: ActivityType.Watching
+        });
+        console.log('🔄 Discord durumu güncellendi');
+    };
+
+    // İlk güncelleme
+    updatePresence();
+    
+    // 30 dakikada bir otomatik güncelle
+    setInterval(updatePresence, 1800000);
+
     // Slash komutları kaydet
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     
